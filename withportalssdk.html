@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full-Screen Model Viewer Overlay</title>
+
+  <!-- Portals SDK for iframe communication -->
+  <script src="https://portals-labs.github.io/portals-sdk/portals-sdk.js?v=10005456"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Georgia', serif;
+    }
+
+    .viewer-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background: linear-gradient(135deg, rgba(0,0,0,0.3), rgba(20,20,40,0.2));
+      overflow: hidden;
+      z-index: 9999;
+      padding: 0;
+      margin: 0;
+      box-sizing: border-box;
+    }
+
+    .viewer-container::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(100,150,255,0.1), transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(255,100,150,0.08), transparent 50%),
+        radial-gradient(circle at 50% 10%, rgba(255,255,200,0.05), transparent 70%);
+      filter: blur(40px);
+      opacity: 0.6;
+      pointer-events: none;
+      animation: etherealGlow 20s ease-in-out infinite;
+      z-index: -1;
+    }
+
+    .header {
+      position: absolute;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.9);
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      opacity: 0;
+      animation: slideDown 0.6s ease forwards 0.3s;
+      z-index: 10;
+      max-width: 90vw;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .model-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    model-viewer {
+      width: 95vw;
+      max-width: none;
+      height: 75vh;
+      max-height: none;
+      background: transparent;
+      border: none;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      opacity: 0;
+      transform: scale(0.95) rotateY(5deg);
+      animation: modelAppear 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards 0.5s;
+      
+      --poster-blur: 0;
+      --progress-bar-background: transparent;
+      --progress-bar-fill: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+      
+      /* Enhanced lighting */
+      exposure: 0.8;
+      brightness: 1.2;
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 15px;
+      opacity: 0;
+      animation: slideUp 0.6s ease forwards 0.8s;
+      z-index: 10;
+    }
+
+    .control-btn {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      user-select: none;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .control-btn:hover {
+      background: rgba(255,255,255,0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .control-btn:active {
+      transform: translateY(0);
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.8);
+      font-size: 18px;
+      z-index: 100;
+    }
+
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 40px;
+      height: 40px;
+      margin: -20px 0 0 -20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes etherealGlow {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.05); }
+    }
+
+    @keyframes slideDown {
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    @keyframes slideUp {
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    @keyframes modelAppear {
+      to { 
+        opacity: 1; 
+        transform: scale(1) rotateY(0deg); 
+      }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Keyboard shortcuts hint */
+    .hint {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.6);
+      font-size: 12px;
+      opacity: 0;
+      animation: fadeIn 0.5s ease forwards 1s;
+      z-index: 10;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 0.7; }
+    }
+
+    /* ESC to close visual feedback */
+    .esc-hint {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      opacity: 0;
+      animation: fadeIn 0.5s ease forwards 1.2s;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viewer-container" id="viewerContainer">
+    <div class="esc-hint">Press ESC to close</div>
+    <div class="header" id="modelTitle">Ancient Letter</div>
+    <div class="hint">Drag to rotate • Scroll to zoom • ESC to close</div>
+    
+    <div class="model-container">
+      <div class="loading" id="loadingSpinner">Loading model...</div>
+      <model-viewer
+        id="modelViewer"
+        alt="Game Model"
+        camera-controls
+        environment-image="neutral"
+        shadow-intensity="0.3"
+        shadow-softness="1"
+        background-color="transparent"
+        loading="eager"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        ios-src="https://raw.githubusercontent.com/yoyoyo4444444/haunted-house-sdsdsd/main/Paper11.usdz">
+      </model-viewer>
+    </div>
+    
+    <div class="controls">
+      <button class="control-btn" onclick="resetView()">Reset View</button>
+      <button class="control-btn" onclick="toggleFullScreen()">Full Screen</button>
+      <button class="control-btn" onclick="closeViewer()">Close</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import '@google/model-viewer/dist/model-viewer.min.js';
+    
+    const viewerContainer = document.getElementById('viewerContainer');
+    const modelViewer = document.getElementById('modelViewer');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    
+    // Parse URL params for dynamic loading (e.g., ?model=URL&title=Title&task=TaskName)
+    const urlParams = new URLSearchParams(window.location.search);
+    const modelSrc = urlParams.get('model') || 'https://raw.githubusercontent.com/yoyoyo4444444/haunted-house-sdsdsd/main/Paper11.glb';
+    const modelTitle = urlParams.get('title') || 'Ancient Letter';
+    const taskName = urlParams.get('task') || 'viewLetterTask'; // Default task name for completion
+    
+    document.getElementById('modelTitle').textContent = modelTitle;
+    modelViewer.src = modelSrc;
+    
+    // Model loaded event
+    modelViewer.addEventListener('load', () => {
+      loadingSpinner.style.display = 'none';
+      // Add subtle entrance animation to model
+      modelViewer.animate({
+        transform: 'rotateY(360deg)',
+        easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        duration: 2000
+      });
+    });
+    
+    // Error handling
+    modelViewer.addEventListener('error', (e) => {
+      loadingSpinner.textContent = 'Failed to load model';
+      console.error('Model load error:', e);
+    });
+    
+    // Progress tracking
+    modelViewer.addEventListener('progress', (e) => {
+      const { loaded, total } = e.detail;
+      if (total > 0) {
+        const progress = (loaded / total) * 100;
+        loadingSpinner.textContent = `Loading... ${Math.round(progress)}%`;
+      }
+    });
+    
+    // Control functions
+    window.resetView = () => {
+      modelViewer.resetTurntableRotation();
+      modelViewer.cameraOrbit = '0deg 75deg 105%';
+    };
+    
+    window.toggleFullScreen = () => {
+      if (!document.fullscreenElement) {
+        viewerContainer.requestFullscreen().catch(err => console.log(err));
+      } else {
+        document.exitFullscreen();
+      }
+    };
+    
+    // Updated closeViewer to send Portals message and close iframe
+    window.closeViewer = () => {
+      // Send completion message to Unity (must be JSON string)
+      const message = {
+        TaskName: taskName,
+        TaskTargetState: 'SetActiveToCompleted' // Mark task as completed
+      };
+      PortalsSdk.sendMessageToUnity(JSON.stringify(message));
+      
+      // Close the iframe
+      PortalsSdk.closeIframe();
+    };
+    
+    // Keyboard controls (ESC sends message and closes)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeViewer();
+      } else if (e.key === 'r' || e.key === 'R') {
+        resetView();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullScreen();
+      }
+    });
+    
+    // Prevent context menu on model viewer
+    modelViewer.addEventListener('contextmenu', (e) => e.preventDefault());
+    
+    // Auto-focus for better UX
+    modelViewer.addEventListener('click', () => modelViewer.focus());
+    
+    // Optional: Auto-complete after viewing (e.g., 10s delay) - uncomment if desired
+    // setTimeout(() => {
+    //   if (document.visibilityState === 'visible') closeViewer();
+    // }, 10000);
+  </script>
+</body>
+</html>
