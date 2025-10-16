@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full-Screen Model Viewer Overlay</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: transparent; /* fully see-through to the game */
+      overflow: hidden; /* prevent scrollbars */
+    }
+
+    /* Fullscreen overlay container */
+    .viewer-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px); /* Safari support */
+      background: rgba(255, 255, 255, 0.02); /* faint tint */
+      overflow: hidden;
+      z-index: 9999;
+    }
+
+    /* Misty edges overlay */
+    .viewer-container::before {
+      content: '';
+      position: absolute;
+      inset: -20px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,0.06), transparent 70%),
+        radial-gradient(circle at 70% 80%, rgba(255,255,255,0.06), transparent 60%);
+      filter: blur(25px);
+      opacity: 0.9;
+      pointer-events: none;
+      animation: mistMove 25s linear infinite alternate;
+    }
+
+    /* Centered model viewer */
+    model-viewer {
+      width: 80vw;
+      max-width: 900px;
+      height: 70vh;
+      background: transparent;
+      opacity: 0;
+      transform: scale(0.98);
+      animation: appear 0.8s ease forwards 0.2s;
+    }
+
+    /* Fade-in animations */
+    @keyframes appear {
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes mistMove {
+      0% { background-position: 0 0, 100% 100%; }
+      100% { background-position: 50% 50%, 150% 150%; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viewer-container">
+    <model-viewer
+      src="https://raw.githubusercontent.com/yoyoyo4444444/haunted-house-sdsdsd/main/paper%201.glb"
+      alt="Game Model"
+      auto-rotate
+      camera-controls
+      environment-image="neutral"
+      shadow-intensity="0.25"
+      shadow-softness="0.8"
+      background-color="transparent">
+    </model-viewer>
+  </div>
+
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</body>
+</html>
